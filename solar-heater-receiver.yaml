@@ -1,0 +1,86 @@
+esphome:
+  name: solar-heater-receiver
+  friendly_name: Solar Heater Receiver
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    version: recommended
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "{{KEY}}"
+
+ota:
+  - platform: esphome
+    password: "{{password}}"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  power_save_mode: none
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Solar-Heater-Receiver"
+    password: "{{password}}"
+
+captive_portal:
+
+binary_sensor:
+  - platform: status
+    name: "LoRa Module Status"
+    entity_category: diagnostic 
+
+sensor:
+  - platform: template 
+    id: solar_heater_temperature
+    name: "Solar Heater Temperature"
+    unit_of_measurement: "°C"
+    icon: "mdi:solar-power-variant-outline"
+    accuracy_decimals: 2
+
+  - platform: wifi_signal
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+  - platform: copy
+    source_id: wifi_signal_db
+    name: "WiFi Signal"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
+    entity_category: "diagnostic"
+    device_class: ""
+
+spi:
+  clk_pin: 18
+  miso_pin: 19
+  mosi_pin: 23
+
+sx127x:
+  cs_pin: 4
+  rst_pin: 5
+  dio0_pin: 2
+  frequency: 433000000
+  modulation: LORA
+
+  bandwidth: 125_0kHz
+  spreading_factor: 7
+  coding_rate: CR_4_5
+  preamble_size: 7
+  crc_enable: true
+  rx_start: true
+
+  on_packet:
+    - lambda: |-
+          std::string msg(reinterpret_cast<const char*>(x.data()), x.size());
+          float value = atof(msg.c_str());
+          id(solar_heater_temperature).publish_state(value);
