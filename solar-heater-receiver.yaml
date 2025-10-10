@@ -44,6 +44,8 @@ sensor:
     unit_of_measurement: "°C"
     icon: "mdi:solar-power-variant-outline"
     accuracy_decimals: 2
+    filters:
+      - round: 2 
 
   - platform: wifi_signal
     name: "WiFi Signal dB"
@@ -82,6 +84,18 @@ sx127x:
   on_packet:
     - lambda: |-
         std::string msg(reinterpret_cast<const char*>(x.data()), x.size());
+        msg.erase(std::remove_if(msg.begin(), msg.end(), [](char c){ return c=='\r' || c=='\n' || c=='\0'; }), msg.end());
+
+        if (msg.empty()) {
+          ESP_LOGW("lora", "Empty LoRa packet ignored");
+          return;
+        }
+
         float value = atof(msg.c_str());
-        ESP_LOGI("lora", "Received temperature: %.2f °C", value);
+        if (value == 0.0f && msg != "0" && msg != "0.0") {
+          ESP_LOGW("lora", "Invalid LoRa data '%s' -> ignored", msg.c_str());
+          return;
+        }
+
+        ESP_LOGI("lora", "LoRa temperature: %.2f °C", value);
         id(solar_heater_temperature).publish_state(value);
