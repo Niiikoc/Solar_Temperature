@@ -81,6 +81,7 @@ sx127x:
 
   on_packet:
     - lambda: |-
-          std::string msg(reinterpret_cast<const char*>(x.data()), x.size());
-          float value = atof(msg.c_str());
-          id(solar_heater_temperature).publish_state(value);
+        std::string msg(reinterpret_cast<const char*>(x.data()), x.size());
+        float value = atof(msg.c_str());
+        ESP_LOGI("lora", "Received temperature: %.2f °C", value);
+        id(solar_heater_temperature).publish_state(value);
